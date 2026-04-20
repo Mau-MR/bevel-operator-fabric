@@ -409,6 +409,7 @@ func GetClient(ca FabricCAParams) (*lib.Client, func(), error) {
 			cleanup()
 			return nil, nil, err
 		}
+		caCertFile.Close()
 		client.Config.TLS = tls.ClientTLSConfig{
 			Enabled:   true,
 			CertFiles: []string{caCertFile.Name()},
