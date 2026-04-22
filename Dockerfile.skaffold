@@ -1,0 +1,42 @@
+# Build the manager binary
+FROM golang:1.23 as builder
+
+WORKDIR /workspace
+# Copy the Go Modules manifests
+COPY go.mod go.mod
+COPY go.sum go.sum
+# cache deps before building and copying source so that we don't need to re-download as much
+# and so that source changes don't invalidate our downloaded layer
+RUN go mod download
+
+# Copy the go source
+COPY main.go main.go
+COPY controllers/ controllers/
+COPY pkg/ pkg/
+COPY analytics/ analytics/
+# Copy the charts (needed by the operator)
+COPY charts/ charts/
+
+# Build
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -a -o hlf-operator main.go
+
+# Use alpine for the final image
+FROM alpine:3.14
+RUN apk update && \
+    apk add --no-cache curl ca-certificates shadow
+
+COPY CREDITS /licenses/CREDITS
+COPY LICENSE /licenses/LICENSE
+LABEL name="HLF Operator" \
+      vendor="Kung Fu Software <dviejo@kungfusoftware.es>" \
+      maintainer="Kung Fu Software <dviejo@kungfusoftware.es>" \
+      version="v1.1.0" \
+      release="v1.1.0"
+
+WORKDIR /
+COPY --from=builder /workspace/hlf-operator /hlf-operator
+COPY --from=builder /workspace/charts /charts
+
+USER 65532:65532
+
+ENTRYPOINT ["/hlf-operator"]

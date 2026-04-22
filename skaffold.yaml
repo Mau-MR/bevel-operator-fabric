@@ -1,0 +1,49 @@
+apiVersion: skaffold/v4beta11
+kind: Config
+metadata:
+  name: bevel-operator-fabric
+build:
+  artifacts:
+    - image: controller
+      context: .
+      hooks:
+        before:
+          - command: [ "sh", "-c", "make manifests" ]
+      docker:
+        dockerfile: Dockerfile.skaffold
+  local:
+    push: false
+manifests:
+  kustomize:
+    paths:
+      - config/default
+deploy:
+  kubectl:
+    patches:
+      - path: /spec/template/spec/containers/0/imagePullPolicy
+        value: IfNotPresent
+        resourceType: Deployment
+        resourceName: hlf-operator-controller-manager
+
+profiles:
+  - name: kind
+    build:
+      artifacts:
+        - image: controller
+          context: .
+          hooks:
+            before:
+              - command: [ "sh", "-c", "make manifests" ]
+          docker:
+            dockerfile: Dockerfile.skaffold
+      local:
+        push: true
+    # To use a specific registry with kind, run with:
+    # skaffold dev -p kind --default-repo=localhost:5001/hlf-operator
+    deploy:
+      kubectl:
+        patches:
+          - path: /spec/template/spec/containers/0/imagePullPolicy
+            value: IfNotPresent
+            resourceType: Deployment
+            resourceName: hlf-operator-controller-manager
